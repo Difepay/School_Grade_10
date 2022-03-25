@@ -1,2 +1,3 @@
-# School_Grage_10
-All my school programming homework
+# Course: School
+# Grade: 10
+All my school programming homework (java, assembly)
