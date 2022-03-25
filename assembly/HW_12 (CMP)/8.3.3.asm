@@ -3,24 +3,31 @@ MODEL small
 STACK 100h
 DATASEG
 	;-----VARS-----: 
+	var1 db 2
+	var2 db 4
+
 CODESEG
 start:
 	mov ax, @data
 	mov ds, ax
 	
 	;-----CODE-----:
-	xor ax, ax
-	xor bx, bx
+	mov bh, [var1]
+	mov bl, [var2]
 	
-	mov ax, 2
-	mov bx, 2
+	cmp bh, bl
+	ja var1bigger
+	jbe var2bigger
 	
-	cmp ax, bx
-	jne notequals
-	je exit
-	
-	notequals:
-		mov ax, bx
+
+
+	var1bigger:
+		mov ax, 1
+		jmp exit
+
+	var2bigger:
+		mov ax, 0
+		jmp exit
 
 exit:
 	mov ax, 4c00h
