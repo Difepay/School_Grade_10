@@ -1,0 +1,16 @@
+IDEAL
+MODEL small
+STACK 100h
+DATASEG
+	;----VARS----
+	arr db 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+CODESEG 
+start: 
+	mov ax, @data 
+	mov ds, ax
+	
+	;----CODE----
+exit: 
+	mov ax, 4c00h 
+	int 21h 
+END start 
