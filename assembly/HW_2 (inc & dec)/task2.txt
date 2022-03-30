@@ -1,0 +1,6 @@
+inc adds 1 to register
+dec subs 1 from register
+
+syntex:
+inc [register name]
+dec [register name]
