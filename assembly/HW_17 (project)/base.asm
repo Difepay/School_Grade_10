@@ -4,17 +4,13 @@ STACK 100h
 
 DATASEG
 	;-----VARS-----:
-	gameBoard	;db 4 dup (0, 'b')
-					;db 4 dup ('b', 0)
-					db 8 dup (0)
-					db 8 dup (0)
-					db 4 dup (0, 'b')
-					db 16 dup (0)
-					db 4 dup ('w', 0)
-					db 8 dup (0)
-					db 8 dup (0)
-					;db 4 dup (0, 'w')
-					;db 4 dup ('w', 0)
+	gameBoard	db 4 dup (0, 'b')
+				db 4 dup ('b', 0)
+				db 4 dup (0, 'b')
+				db 16 dup (0)
+				db 4 dup ('w', 0)
+				db 4 dup (0, 'w')
+				db 4 dup ('w', 0)
 
 	rowCount db 8
 	colCount db 8
@@ -22,7 +18,6 @@ DATASEG
 	placesCount dw 64		; Rows * Columns
 	currentMove dw 0		; 0 - white, 1 - black
 	
-
 	indexToReturn dw 0
 	indexToReturnFunc dw 0
 
@@ -53,6 +48,10 @@ DATASEG
 
 	enterRowToString db "Enter a row to move the checker: ", '$'
 	enterColToString db "Enter a column to move the checker: ", '$'
+
+	winnerString db "WE HAVE WINNER!", '$'
+	whiteWinnerString db "Congratulations WHITE checkers!", '$'
+	blackWinnerString db "Congratulations BLACK checkers!", '$'
 
 CODESEG
 	;-----PROC-----:
@@ -464,14 +463,9 @@ CODESEG
 		attack_logic:
 			mov ax, [currRowFrom]
 			sub ax, [currRowTo]
+			imul [moveDirection]
 
-			or ax, ax
-			jns diff_row_positive
-			not ax
-			inc ax
-
-		diff_row_positive:
-			cmp ax, 2
+			cmp ax, -2
 			jne check_common_move
 
 		mov ax, [currColFrom]
@@ -546,7 +540,7 @@ CODESEG
 		push cx
 		push dx
 
-        push [currRowFrom]
+      push [currRowFrom]
 		push [currColFrom]
 		call getCurrentPlace
 
@@ -559,6 +553,46 @@ CODESEG
 	
 		mov [byte ptr bx], cl
 
+		mov cl, [colCount]
+		mov dx, 8				; Row to check to kings
+
+		kingWhiteCheck:
+			dec cx
+			push dx
+			push cx
+			call getCurrentPlace
+
+			mov al, [byte ptr bx]
+			cmp al, 'w'
+			jne continueKingWhiteChecking
+
+			and al, 11011111b
+			mov [byte ptr bx], al
+
+			continueKingWhiteChecking:
+				inc cx
+		loop kingWhiteCheck
+
+		mov cl, [colCount]
+		mov dx, 1				; Row to check to kings
+
+		kingBlackCheck:
+			dec cx
+			push dx
+			push cx
+			call getCurrentPlace
+
+			mov al, [byte ptr bx]
+			cmp al, 'b'
+			jne continueKingBlackChecking
+
+			and al, 11011111b
+			mov [byte ptr bx], al
+
+			continueKingBlackChecking:
+				inc cx
+		loop kingBlackCheck
+
 		; Return the values
 		pop dx
 		pop cx
@@ -569,52 +603,88 @@ CODESEG
 	endp updateBoard
 
 	proc checkWinner
-		mov cl, [rowCount]
-		mov di, 0				; Current row
-		mov [containsWhite], 0
-		mov [containsBlack], 0
+		push ax
+		push dx
+
+		; Save the values
+		mov cl, [rowCount]		; cl = 8 (row)
+		mov [containsWhite], 0	; Annul containsWhite variable
+		mov [containsBlack], 0	; Annul containsBlack variable
+
 		goOverBoardRows:
-			xor si, si
-			mov dl, [colCount]
+			xor dx, dx		; dl = 0 
+			
 			goOverBoardCols:
-				push di
-				push si
+				push cx
+				push dx
 				call getCurrentPlace
 
 				mov al, [byte ptr bx]
 				and al, 11011111b
-				mov ah, al
 
 				cmp al, 'W'
 				je changeWhiteContains
 
-				cmp ah, 'B'
+				cmp al, 'B'
 				je changeBlackContains
 				jmp continueColChecking
 
 				changeWhiteContains:
 					mov [containsWhite], 1
+					jmp continueColChecking
 
 				changeBlackContains:
 					mov [containsBlack], 1
 
 				continueColChecking:
-					inc si
-					dec dl
+					inc dl
 
-				cmp dl, 0
+				cmp dl, [colCount]
 				jne goOverBoardCols
-	
-			inc di
 		loop goOverBoardRows
 
 		returnValuesCheck:
+			pop dx
+			pop ax
+
 			mov cl, [containsWhite]
 			and cl, [containsBlack]
 			inc cl
-
-			ret
+		ret
 	endp checkWinner
+
+	proc printWinner
+		; Save the values
+		push ax
+		push dx
+
+		lea dx, [winnerString]
+		mov ah, 09h
+		int 21h
+		call newLine
+
+		inc [currentMove]
+		and [currentMove], 1
+
+		cmp [currentMove], 0
+		je saveWhiteWinner
+
+		lea dx, [blackWinnerString]
+		jmp printWinnerString
+
+		saveWhiteWinner:
+			lea dx, [whiteWinnerString]
+
+		printWinnerString:
+			mov ah, 09h
+			int 21h
+		call newLine
+
+		; Return the values
+		pop dx
+		pop ax
+		ret
+	endp printWinner
 
 start:
 	mov ax, @data
@@ -647,8 +717,11 @@ start:
 		; This block of code swithcing value of currentMove between 0 and 1
 		inc [currentMove]
 		and [currentMove], 1
-
 	loop mainLoop
+
+	call clearScreen
+	call printBoard
+	call printWinner
 
 exit:
 	mov ax, 4c00h
