@@ -1,16 +1,33 @@
+; CHECKERS PROJECT BY DMITRY ZAGULIAEV assmebly
+; My rules:
+; The the game is played on an 8 x 8 board where the numbering of the rows is numbers, and the numbering of the columns is letters.
+; A simple checker can move diagonally one square to the right or one square to the left. Checkers do not go back.
+; Taking checkers is not necessary, but if you take one with your own checker and you can take more with the same one, it is mandatory.
+; Only a king of any color can move along the entire diagonal without obstacles.
+; A checker becomes a king if it reaches the last row from itself
+
 IDEAL
 MODEL small
 STACK 100h
 
 DATASEG
 	;-----VARS-----:
-	gameBoard	db 4 dup (0, 'b')
-				db 4 dup ('b', 0)
-				db 4 dup (0, 'b')
-				db 16 dup (0)
-				db 4 dup ('w', 0)
-				db 4 dup (0, 'w')
-				db 4 dup ('w', 0)
+	;gameBoard	db 4 dup (0, 'b')
+	;			db 4 dup ('b', 0)
+	;			db 4 dup (0, 'b')
+	;			db 16 dup (0)
+	;			db 4 dup ('w', 0)
+	;			db 4 dup (0, 'w')
+	;			db 4 dup ('w', 0)
+
+	gameBoard	db 0, 0, 0, 0, 0, 0, 0, 'W'
+					db 0, 0, 0, 0, 0, 0, 'b', 0
+					db 0, 0, 0, 0, 0, 'w', 0, 0
+					db 0, 0, 0, 0, 'B', 0, 0, 0
+					db 0, 0, 0, 'W', 0, 0, 0, 0
+					db 0, 0, 'b', 0, 0, 0, 0, 0
+					db 0, 'B', 0, 0, 0, 0, 0, 0
+					db 0, 0, 0, 0, 0, 0, 0, 0
 
 	rowCount db 8
 	colCount db 8
@@ -30,10 +47,12 @@ DATASEG
 
 	validator db 0		; 0 - no errors, 1 - there is error
 	canGoLinier db 0
-	moveDirection db 0
+	moveDirectionRow db 0
+	moveDirectionCol db 0
 	enemyChar db 0
 	containsWhite db 0
 	containsBlack db 0
+	isKing db 0
 
 	lettersStr db "    A   B   C   D   E   F   G   H", '$'
 	topLineStr db "  +---+---+---+---+---+---+---+---+", '$'
@@ -53,6 +72,7 @@ DATASEG
 	whiteWinnerString db "Congratulations WHITE checkers!", '$'
 	blackWinnerString db "Congratulations BLACK checkers!", '$'
 
+	myNumber dw 0
 CODESEG
 	;-----PROC-----:
 	proc clearScreen
@@ -372,7 +392,8 @@ CODESEG
 		
 		start_check_FROM:
 			mov [validator], 0
-		
+			mov [isKing], 0
+
 		cmp [currRowFrom], 1
 		jl change_validator_FROM
 
@@ -390,19 +411,21 @@ CODESEG
 		call getCurrentPlace
 
 		mov al, [byte ptr bx]
-		mov ah, al
 
 		; Compare with lower case
 		cmp al, cl
 		je return_values_FROM
 
 		; Compare with upper case
-		cmp ah, ch
-		je return_values_FROM
+		cmp al, ch
+		jne change_validator_FROM
 		
+		mov [isKing], 1
+		jmp return_values_FROM
+
 		change_validator_FROM:
 			mov [validator], 1
-
+		
 		return_values_FROM:
 			mov ax, [tempMemory]
 			pop cx
@@ -426,26 +449,26 @@ CODESEG
 		jmp set_neg_diretction_TO
 
 		set_pos_direction_TO:
-			mov [enemyChar], 'b'
-			mov [moveDirection], 1
+			mov [enemyChar], 'B'
+			mov [moveDirectionRow], 1
 			jmp start_check_TO
 
 		set_neg_diretction_TO:
-			mov [enemyChar], 'w'
-			mov [moveDirection], -1
+			mov [enemyChar], 'W'
+			mov [moveDirectionRow], -1
 
 		start_check_TO:
 			cmp [currRowTo], 1
-			jl change_validator_TO
+			jl change_validator_syntax_TO
 
 		cmp [currRowTo], 8
-		ja change_validator_TO
+		ja change_validator_syntax_TO
 
 		cmp [currColTo], 'A'
-		jl change_validator_TO
+		jl change_validator_syntax_TO
 
 		cmp [currColTo], 'H'
-		ja change_validator_TO
+		ja change_validator_syntax_TO
 
 		push [currRowTo]
 		push [currColTo]
@@ -455,61 +478,124 @@ CODESEG
 		cmp cl, 0
 		je attack_logic
 
-		change_validator_TO:
+		change_validator_syntax_TO:
 			mov [validator], 1
 			jmp return_values_TO
 
 		; Attack logic
-		attack_logic:
+		attack_logic: 
+			cmp [isKing], 1
+			je check_king_attack_logic
+			
 			mov ax, [currRowFrom]
 			sub ax, [currRowTo]
-			imul [moveDirection]
+			imul [moveDirectionRow]
 
 			cmp ax, -2
-			jne check_common_move
+			je attack_row_correct
+			jmp check_common_move
 
-		mov ax, [currColFrom]
-		sub ax, [currColTo]
+		attack_row_correct:
+			mov ax, [currColFrom]
+			sub ax, [currColTo]
 
-		or ax, ax
-		jns diff_col_positive
-		not ax
-		inc ax
+			or ax, ax
+			jns diff_col_positive
+			not ax
+			inc ax
 
 		diff_col_positive:
 			cmp ax, 2
-			je check_attact_move
+			jne change_validator_move_TO
 
-		check_attact_move:
+		mov ax, [currRowFrom]
+		mov bx, [currRowTo]
+		add ax, bx
+		shr ax, 1
+		push ax
+
+		mov ax, [currColFrom]
+		mov bx, [currColTo]
+		add ax, bx
+		shr ax, 1
+		push ax
+
+		call getCurrentPlace
+
+		mov cl, [byte ptr bx]
+		and cl, 11011111b
+		cmp cl, [enemyChar]
+		je remove_curr_char
+		jne change_validator_move_TO
+
+		remove_curr_char:
+			mov [byte ptr bx], 0
+			jmp return_values_TO
+
+		change_validator_move_TO:
+			mov [validator], 1
+			jmp return_values_TO
+		
+		check_king_attack_logic:
 			mov ax, [currRowFrom]
-			mov bx, [currRowTo]
-			add ax, bx
-			shr ax, 1
-			push ax
+			sub ax, [currRowTo]
 
-			mov ax, [currColFrom]
-			mov bx, [currColTo]
-			add ax, bx
-			shr ax, 1
-			push ax
+			or ax, ax
+			jns diff_row_king_positive
+			mov [moveDirectionRow], 1
+			not ax
+			inc ax
+			jmp check_king_col
 
-			call getCurrentPlace
+			diff_row_king_positive:
+				mov [moveDirectionRow], -1
 
-			mov cl, [byte ptr bx]
-			cmp cl, [enemyChar]
-			je remove_curr_char
-			jne change_validator_TO
+			check_king_col:
+				mov bx, [currColFrom]
+				sub bx, [currColTo]
 
-			remove_curr_char:
+			or bx, bx
+			jns diff_col_king_positive
+			mov [moveDirectionCol], 1
+			not bx
+			inc bx
+			jmp start_king_path
+
+			diff_col_king_positive:
+				mov [moveDirectionCol], -1
+			
+			start_king_path:
+				cmp ax, bx
+				jne change_validator_move_TO
+		
+			mov cx, [currRowFrom]
+			mov dx, [currColFrom]
+			delete_under_king:
+				add cl, [moveDirectionRow]
+				add dl, [moveDirectionCol]
+
+				push cx
+				push dx
+				call getCurrentPlace
+
+				mov al, [byte ptr bx]
+				and al, 11011111b
+				cmp al, [enemyChar]
+				jne continue_check_king_path
+
 				mov [byte ptr bx], 0
-				jmp return_values_TO
+
+				continue_check_king_path:
+					cmp cx, [currRowTo]
+					jne delete_under_king
+			jmp return_values_TO
 
 		check_common_move:
 			mov ax, [currRowFrom]
-			add al, [moveDirection]
+			add al, [moveDirectionRow]
 
 			cmp ax, [currRowTo]
-			jne change_validator_TO
+			jne change_validator_move_pac_TO
 
 			mov ax, [currColFrom]
 			mov bx, ax
@@ -523,7 +609,10 @@ CODESEG
 			cmp bx, [currColTo]
 			je return_values_TO
 
-		mov [validator], 1
+		change_validator_move_pac_TO:
+			mov [validator], 1
+			jmp return_values_TO
+
 		; Return the values
 		return_values_TO:
 			mov ax, [tempMemory]
