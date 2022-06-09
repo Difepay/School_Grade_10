@@ -30,9 +30,7 @@ DATASEG
 	currColTo dw 0
 
 	validator db 0		; flag: 0 - no errors, 1 - there is error
-	canGoLinier db 0
 	moveDirectionRow db 0
-	moveDirectionCol db 0
 	enemyChar db 0
 	containsWhite db 0
 	containsBlack db 0
@@ -54,14 +52,13 @@ DATASEG
 	winnerString db "WE HAVE WINNER!", '$'
 	whiteWinnerString db "Congratulations WHITE checkers!", '$'
 	blackWinnerString db "Congratulations BLACK checkers!", '$'
-
-	myNumber dw 0
 CODESEG
 	;-----PROC-----:
 	proc clearScreen
 		; Save values
 		push ax
 
+        ; This block of code clears console
 		mov ax, 03h
 		int 10h
 
@@ -75,9 +72,10 @@ CODESEG
 		push dx
 		push ax
 
+        ; This block of the code will print new line in the console
 		mov dl, 0ah
-      mov ah, 2h
-      int 21h
+        mov ah, 2h
+        int 21h
 
 		; Return the values
 		pop ax
@@ -99,7 +97,9 @@ CODESEG
 		int 21h
 		call newLine
 
-		mov dx, 8
+        ; Printing line number (left)
+        xor dh, dh
+		mov dl, [rowcount]
 		sub dx, di
 		add dl, '0'
 		mov ah, 02h
@@ -110,7 +110,7 @@ CODESEG
 		int 21h
 
 		mov cl, [colCount]	; Set counter value to 8 
-		mov si, 0				; Current col
+		mov si, 0			; Current col
 
 		; Printing board row
 		printRows:
@@ -255,7 +255,7 @@ CODESEG
 		int 21h
 		
 		mov ah, 1h
-   	int 21h
+   	    int 21h
 		sub al, '0'
 		xor ah, ah
 		mov [currRowFrom], ax
@@ -268,7 +268,7 @@ CODESEG
 		int 21h
 		
 		mov ah, 1h
-   	int 21h
+   	    int 21h
 		xor ah, ah
 		mov [currColFrom], ax
 		and [currColFrom], 11011111b
@@ -292,7 +292,7 @@ CODESEG
 		int 21h
 		
 		mov ah, 1h
-   	int 21h
+   	    int 21h
 		sub al, '0'
 		xor ah, ah
 		mov [currRowTo], ax
@@ -305,7 +305,7 @@ CODESEG
 		int 21h
 		
 		mov ah, 1h
-   	int 21h
+   	    int 21h
 		xor ah, ah
 		mov [currColTo], ax
 		and [currColTo], 11011111b
@@ -546,7 +546,7 @@ CODESEG
 		push bx
 		push cx
 
-      push [currRowFrom]
+        push [currRowFrom]
 		push [currColFrom]
 		call getCurrentPlace
 
@@ -656,7 +656,6 @@ start:
 
 	;-----CODE-----:
 	mov cx, 1
-	mov [currentMove], 1
 
 	mainLoop:
 		call clearScreen
