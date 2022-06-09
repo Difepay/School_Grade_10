@@ -3,14 +3,15 @@ MODEL small
 STACK 100h
 
 DATASEG
-	;-----VARS-----:
+	;-----VARS-----:	
 	gameBoard	db 4 dup (0, 'b')
-					db 4 dup ('b', 0)
-					db 4 dup (0, 'b')
-					db 16 dup (0)
-					db 4 dup ('w', 0)
-					db 4 dup (0, 'w')
-					db 4 dup ('w', 0)
+				db 4 dup ('b', 0)
+				db 4 dup (0, 'b')
+				db 16 dup (0)
+				db 4 dup ('w', 0)
+				db 4 dup (0, 'w')
+				db 4 dup ('w', 0)
+
 
 	rowCount db 8
 	colCount db 8
@@ -28,7 +29,7 @@ DATASEG
 	currRowTo dw 0
 	currColTo dw 0
 
-	validator db 0		; 0 - no errors, 1 - there is error
+	validator db 0		; flag: 0 - no errors, 1 - there is error
 	canGoLinier db 0
 	moveDirectionRow db 0
 	moveDirectionCol db 0
@@ -363,15 +364,14 @@ CODESEG
 		jmp save_black_char_FROM
 
 		save_white_char_FROM:
-			mov cl, 'w'
+			mov cl, 'W'
 			jmp start_check_FROM
 
 		save_black_char_FROM:
-			mov cl, 'b'
+			mov cl, 'B'
 		
 		start_check_FROM:
 			mov [validator], 0
-			and cl, 11011111b
 
 		cmp [currRowFrom], 1
 		jl change_validator_FROM
@@ -390,7 +390,7 @@ CODESEG
 		call getCurrentPlace
 
 		mov al, [byte ptr bx]
-		and cl, 11011111b
+		and al, 11011111b
 
 		; Compare with lower case
 		cmp al, cl
@@ -656,6 +656,7 @@ start:
 
 	;-----CODE-----:
 	mov cx, 1
+	mov [currentMove], 1
 
 	mainLoop:
 		call clearScreen
