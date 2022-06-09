@@ -1,33 +1,16 @@
-; CHECKERS PROJECT BY DMITRY ZAGULIAEV assmebly
-; My rules:
-; The the game is played on an 8 x 8 board where the numbering of the rows is numbers, and the numbering of the columns is letters.
-; A simple checker can move diagonally one square to the right or one square to the left. Checkers do not go back.
-; Taking checkers is not necessary, but if you take one with your own checker and you can take more with the same one, it is mandatory.
-; Only a king of any color can move along the entire diagonal without obstacles.
-; A checker becomes a king if it reaches the last row from itself
-
 IDEAL
 MODEL small
 STACK 100h
 
 DATASEG
 	;-----VARS-----:
-	;gameBoard	db 4 dup (0, 'b')
-	;			db 4 dup ('b', 0)
-	;			db 4 dup (0, 'b')
-	;			db 16 dup (0)
-	;			db 4 dup ('w', 0)
-	;			db 4 dup (0, 'w')
-	;			db 4 dup ('w', 0)
-
-	gameBoard	db 0, 0, 0, 0, 0, 0, 0, 'W'
-					db 0, 0, 0, 0, 0, 0, 'b', 0
-					db 0, 0, 0, 0, 0, 'w', 0, 0
-					db 0, 0, 0, 0, 'B', 0, 0, 0
-					db 0, 0, 0, 'W', 0, 0, 0, 0
-					db 0, 0, 'b', 0, 0, 0, 0, 0
-					db 0, 'B', 0, 0, 0, 0, 0, 0
-					db 0, 0, 0, 0, 0, 0, 0, 0
+	gameBoard	db 4 dup (0, 'b')
+					db 4 dup ('b', 0)
+					db 4 dup (0, 'b')
+					db 16 dup (0)
+					db 4 dup ('w', 0)
+					db 4 dup (0, 'w')
+					db 4 dup ('w', 0)
 
 	rowCount db 8
 	colCount db 8
@@ -52,7 +35,6 @@ DATASEG
 	enemyChar db 0
 	containsWhite db 0
 	containsBlack db 0
-	isKing db 0
 
 	lettersStr db "    A   B   C   D   E   F   G   H", '$'
 	topLineStr db "  +---+---+---+---+---+---+---+---+", '$'
@@ -194,7 +176,6 @@ CODESEG
 		push cx
 		push dx
 		push di
-
 
 		lea dx, [lettersStr]
 		mov ah, 09h
@@ -383,16 +364,14 @@ CODESEG
 
 		save_white_char_FROM:
 			mov cl, 'w'
-			mov ch, 'W'
 			jmp start_check_FROM
 
 		save_black_char_FROM:
 			mov cl, 'b'
-			mov ch, 'B'
 		
 		start_check_FROM:
 			mov [validator], 0
-			mov [isKing], 0
+			and cl, 11011111b
 
 		cmp [currRowFrom], 1
 		jl change_validator_FROM
@@ -411,17 +390,11 @@ CODESEG
 		call getCurrentPlace
 
 		mov al, [byte ptr bx]
+		and cl, 11011111b
 
 		; Compare with lower case
 		cmp al, cl
 		je return_values_FROM
-
-		; Compare with upper case
-		cmp al, ch
-		jne change_validator_FROM
-		
-		mov [isKing], 1
-		jmp return_values_FROM
 
 		change_validator_FROM:
 			mov [validator], 1
@@ -483,17 +456,18 @@ CODESEG
 			jmp return_values_TO
 
 		; Attack logic
-		attack_logic: 
-			cmp [isKing], 1
-			je check_king_attack_logic
-			
+		attack_logic:	
 			mov ax, [currRowFrom]
 			sub ax, [currRowTo]
-			imul [moveDirectionRow]
 
-			cmp ax, -2
-			je attack_row_correct
-			jmp check_common_move
+			or ax, ax
+			jns diff_row_positive
+			not ax
+			inc ax
+			
+			diff_row_positive:
+				cmp ax, 2
+				jne check_common_move
 
 		attack_row_correct:
 			mov ax, [currColFrom]
@@ -535,60 +509,6 @@ CODESEG
 		change_validator_move_TO:
 			mov [validator], 1
 			jmp return_values_TO
-		
-		check_king_attack_logic:
-			mov ax, [currRowFrom]
-			sub ax, [currRowTo]
-
-			or ax, ax
-			jns diff_row_king_positive
-			mov [moveDirectionRow], 1
-			not ax
-			inc ax
-			jmp check_king_col
-
-			diff_row_king_positive:
-				mov [moveDirectionRow], -1
-
-			check_king_col:
-				mov bx, [currColFrom]
-				sub bx, [currColTo]
-
-			or bx, bx
-			jns diff_col_king_positive
-			mov [moveDirectionCol], 1
-			not bx
-			inc bx
-			jmp start_king_path
-
-			diff_col_king_positive:
-				mov [moveDirectionCol], -1
-			
-			start_king_path:
-				cmp ax, bx
-				jne change_validator_move_TO
-		
-			mov cx, [currRowFrom]
-			mov dx, [currColFrom]
-			delete_under_king:
-				add cl, [moveDirectionRow]
-				add dl, [moveDirectionCol]
-
-				push cx
-				push dx
-				call getCurrentPlace
-
-				mov al, [byte ptr bx]
-				and al, 11011111b
-				cmp al, [enemyChar]
-				jne continue_check_king_path
-
-				mov [byte ptr bx], 0
-
-				continue_check_king_path:
-					cmp cx, [currRowTo]
-					jne delete_under_king
-			jmp return_values_TO
 
 		check_common_move:
 			mov ax, [currRowFrom]
@@ -611,7 +531,6 @@ CODESEG
 
 		change_validator_move_pac_TO:
 			mov [validator], 1
-			jmp return_values_TO
 
 		; Return the values
 		return_values_TO:
@@ -624,10 +543,8 @@ CODESEG
 
 	proc updateBoard
 		; Save values
-		push ax
 		push bx
 		push cx
-		push dx
 
       push [currRowFrom]
 		push [currColFrom]
@@ -642,51 +559,9 @@ CODESEG
 	
 		mov [byte ptr bx], cl
 
-		mov cl, [colCount]
-		mov dx, 8				; Row to check to kings
-
-		kingWhiteCheck:
-			dec cx
-			push dx
-			push cx
-			call getCurrentPlace
-
-			mov al, [byte ptr bx]
-			cmp al, 'w'
-			jne continueKingWhiteChecking
-
-			and al, 11011111b
-			mov [byte ptr bx], al
-
-			continueKingWhiteChecking:
-				inc cx
-		loop kingWhiteCheck
-
-		mov cl, [colCount]
-		mov dx, 1				; Row to check to kings
-
-		kingBlackCheck:
-			dec cx
-			push dx
-			push cx
-			call getCurrentPlace
-
-			mov al, [byte ptr bx]
-			cmp al, 'b'
-			jne continueKingBlackChecking
-
-			and al, 11011111b
-			mov [byte ptr bx], al
-
-			continueKingBlackChecking:
-				inc cx
-		loop kingBlackCheck
-
 		; Return the values
-		pop dx
 		pop cx
 		pop bx
-		pop ax
 
 		ret
 	endp updateBoard
